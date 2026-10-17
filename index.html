@@ -87,6 +87,11 @@ td.pts{font-weight:800;font-size:18px}
 .rules li{counter-increment:r;position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 14px 14px 58px;margin-bottom:10px;font-size:21px;line-height:1.35;font-weight:500}
 .rules li::before{content:counter(r);position:absolute;left:12px;top:12px;width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center}
 .rules h2{font-size:26px;margin:6px 2px 12px}
+tr.out td{color:#aaa}tr.out td.pts{color:#aaa}tr.out small{font-size:12px}
+.plink{display:block;width:100%;text-align:center;color:var(--mut);font-size:14px;padding:4px 0 10px;text-decoration:underline}
+.prow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:0 14px;height:56px;margin-bottom:6px;font-size:19px;font-weight:600}
+.prow input{width:26px;height:26px;accent-color:var(--acc)}.prow span{flex:1}.prow small{color:#b00020;font-size:14px;font-weight:600}
+.prow.off span{color:#aaa;text-decoration:line-through}
 </style>
 </head>
 <body>
@@ -114,10 +119,11 @@ const MAXR = 20, ATTEMPTS = 120;
 const KEY = "padel17_v3";
 const FINAL_AT = 14*60+55;
 
-function fresh(){return {tab:"round",round:0,scores:{},names:{},board:"k",final:null,cfgSeen:false,rev:{},
+function fresh(){return {tab:"round",round:0,scores:{},names:{},board:"k",final:null,cfgSeen:false,rev:{},away:{},
   cfg:{len:10,rounds:10,start:"13:15"},roster:{k:DEF_KIDS.slice(),a:DEF_ADULTS.slice()},
   timer:{running:false,endAt:0,left:600}}}
 let S; try{S=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){S=fresh()}
+if(!S.away||typeof S.away!=="object")S.away={};
 try{if(!localStorage.getItem(KEY)){const o=JSON.parse(localStorage.getItem("padel17_v2")||"null");if(o){["cfg","cfgSeen","names","roster"].forEach(k=>{if(o[k]!==undefined)S[k]=o[k]})}}localStorage.removeItem("padel17_v2_draw")}catch(e){}
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
 const N = id => S.names[id] || id;
@@ -186,13 +192,17 @@ function drawNext(players,rounds,remaining,opt){
   return {matches:best.ms.map(([A,B])=>[A.map(i=>players[i]),B.map(i=>players[i])]),sit:best.sit.map(i=>players[i]),_att:att};
 }
 const ROUNDS=()=>S.cfg.rounds;
+const act=g=>S.roster[g].filter(p=>!S.away[p]);
+const isOut=p=>!!S.away[p];
+const outLbl=p=>/a$/i.test(N(p))?"wyszła":"wyszedł";
+function grpHdr(label,c,first,n){const cr=c===2?`korty ${first}–${first+1}`:c===1?`kort ${first}`:"brak kortu";return `${label} · ${cr}${c<2?` (${n} ${n===1?"gracz":"graczy"})`:""}`}
 const groupRounds=(g,upto)=>{const out=[];for(let r=0;r<upto&&S.rev[r];r++)out.push(S.rev[r][g]);return out};
 function revealedCount(){let r=0;while(S.rev[r])r++;return r}
 
 function roundMatches(r){
   const out=[],R=S.rev[r]; if(!R)return out; const kc=R.k.matches.length;
   R.k.matches.forEach((m,i)=>out.push({id:`k${r}_${i}`,court:i+1,a:m[0],b:m[1],grp:"k"}));
-  R.a.matches.forEach((m,i)=>out.push({id:`a${r}_${i}`,court:kc+i+1,a:m[0],b:m[1],grp:"a"}));
+  R.a.matches.forEach((m,i)=>out.push({id:`a${r}_${i}`,court:i+3,a:m[0],b:m[1],grp:"a"}));
   out.forEach(m=>m.sig=m.a.join(",")+"|"+m.b.join(","));
   return out;
 }
@@ -241,9 +251,9 @@ function roundHasScores(r){return Object.keys(S.scores).some(k=>k.startsWith("k"
 function reveal(r){
   if(ANIM||S.rev[r]||(r>0&&!S.rev[r-1]))return;
   ANIM={r,res:null,t0:Date.now()};render();
-  const iv=setInterval(()=>document.querySelectorAll(".nm").forEach(el=>{const L=S.roster[el.dataset.g];el.textContent=N(L[Math.floor(Math.random()*L.length)])}),80);
+  const iv=setInterval(()=>document.querySelectorAll(".nm").forEach(el=>{const L=act(el.dataset.g);if(L.length)el.textContent=N(L[Math.floor(Math.random()*L.length)])}),80);
   setTimeout(()=>{const left=Math.max(1,ROUNDS()-r);
-    ANIM.res={k:drawNext(S.roster.k,groupRounds("k",r),left,{ms:200}),a:drawNext(S.roster.a,groupRounds("a",r),left,{ms:200})};
+    ANIM.res={k:drawNext(act("k"),groupRounds("k",r),left,{ms:200}),a:drawNext(act("a"),groupRounds("a",r),left,{ms:200})};
     window.__lastAtt=[ANIM.res.k._att,ANIM.res.a._att];delete ANIM.res.k._att;delete ANIM.res.a._att},120);
   (function fin(){if(!ANIM.res||Date.now()-ANIM.t0<1800){setTimeout(fin,50);return}
     clearInterval(iv);S.rev[r]=ANIM.res;ANIM=null;S._just=r;save();render();delete S._just;if(navigator.vibrate)navigator.vibrate(80)})();
@@ -254,8 +264,10 @@ function vRound(){
   const r=S.round, R=S.rev[r], ms=roundMatches(r);
   let h=`<div class="rnav"><button id="prev" ${r===0?"disabled":""}>‹</button><div class="lbl"><b>Runda ${r+1} / ${ROUNDS()}</b><span>${times(r)}</span></div><button id="next" ${r===ROUNDS()-1?"disabled":""}>›</button></div>`;
   const cr=(a,b)=>a===b?`kort ${a}`:`korty ${a}–${b}`;
+  const tot=S.roster.k.length+S.roster.a.length, on=act("k").length+act("a").length;
+  h+=`<button class="plink" data-go="more">👤 Obecni: ${on}/${tot} · zmień w zakładce Więcej ›</button>`;
   if(!R){
-    const anim=ANIM&&ANIM.r===r, nc=g=>Math.min(2,Math.floor(S.roster[g].length/4)), kc=nc("k"), ac=nc("a");
+    const anim=ANIM&&ANIM.r===r, nc=g=>Math.min(2,Math.floor(act(g).length/4)), kc=nc("k"), ac=nc("a"), nk=act("k").length, na=act("a").length;
     const can=r===0||!!S.rev[r-1];
     if(!anim){
       if(can) h+=`<button class="btn acc big" id="reveal">🎲 Losuj rundę ${r+1}</button><p class="note" style="text-align:center">Pary i pauzy losujemy na żywo – niespodzianka!</p>`;
@@ -263,19 +275,19 @@ function vRound(){
     } else h+=`<p class="note" style="text-align:center;font-weight:700;color:var(--acc)">Losowanie…</p>`;
     const q=g=>anim?`<span class="nm" data-g="${g}">?</span>`:"?";
     const card=(g,c)=>`<div class="court q${anim?" spin":""}"><h3><span>Kort ${c}</span></h3><div class="pair"><div class="names">${q(g)} + ${q(g)}</div></div><div class="pair"><div class="names">${q(g)} + ${q(g)}</div></div></div>`;
-    h+=`<div class="sec">Dzieci${kc?" · "+cr(1,kc):""}</div>`;for(let i=0;i<kc;i++)h+=card("k",i+1);
-    if(S.roster.k.length>4*kc)h+=`<div class="sit">Pauza: <b>${Array(S.roster.k.length-4*kc).fill(0).map(()=>q("k")).join(", ")}</b></div>`;
-    h+=`<div class="sec">Dorośli${ac?" · "+cr(kc+1,kc+ac):""}</div>`;for(let i=0;i<ac;i++)h+=card("a",kc+i+1);
-    if(S.roster.a.length>4*ac)h+=`<div class="sit">Pauza: <b>${Array(S.roster.a.length-4*ac).fill(0).map(()=>q("a")).join(", ")}</b></div>`;
+    h+=`<div class="sec">${grpHdr("Dzieci",kc,1,nk)}</div>`;for(let i=0;i<kc;i++)h+=card("k",i+1);
+    if(nk>4*kc)h+=`<div class="sit">Pauza: <b>${Array(nk-4*kc).fill(0).map(()=>q("k")).join(", ")}</b></div>`;
+    h+=`<div class="sec">${grpHdr("Dorośli",ac,3,na)}</div>`;for(let i=0;i<ac;i++)h+=card("a",i+3);
+    if(na>4*ac)h+=`<div class="sit">Pauza: <b>${Array(na-4*ac).fill(0).map(()=>q("a")).join(", ")}</b></div>`;
     return h;
   }
   const kc=R.k.matches.length, ac=R.a.matches.length, pop=S._just===r?" pop":"";
   h=h.replace('<div class="rnav">','<div class="rnav">');
   h+=`<div class="${pop}">`;
-  h+=`<div class="sec">Dzieci${kc?" · "+cr(1,kc):""}</div>`;
+  h+=`<div class="sec">${grpHdr("Dzieci",kc,1,kc*4+R.k.sit.length)}</div>`;
   ms.filter(m=>m.grp==="k").forEach(m=>h+=courtCard(m,"Kort "+m.court));
   if(R.k.sit.length)h+=`<div class="sit">Pauza: <b>${R.k.sit.map(N).map(esc).join(", ")}</b></div>`;
-  h+=`<div class="sec">Dorośli${ac?" · "+cr(kc+1,kc+ac):""}</div>`;
+  h+=`<div class="sec">${grpHdr("Dorośli",ac,3,ac*4+R.a.sit.length)}</div>`;
   ms.filter(m=>m.grp==="a").forEach(m=>h+=courtCard(m,"Kort "+m.court));
   if(R.a.sit.length)h+=`<div class="sit">Pauza: <b>${R.a.sit.map(N).map(esc).join(", ")}</b></div>`;
   h+=`</div><p class="note">Każdy gracz dostaje tyle punktów, ile zdobyła jego para. Remis = bez zwycięstwa.</p>`;
@@ -289,15 +301,18 @@ function vTable(){
   const g=S.board, rows=standings(g);
   let h=`<div class="seg"><button data-board="k" class="${g==="k"?"on":""}">Dzieci</button><button data-board="a" class="${g==="a"?"on":""}">Dorośli</button></div>`;
   h+=`<table><tr><th>#</th><th>Gracz</th><th>Śr</th><th>Pkt</th><th>W</th><th>M</th></tr>`;
-  rows.forEach((x,i)=>h+=`<tr class="${i<4?"top4":""}"><td>${i+1}</td><td>${esc(N(x.p))}${x.p===BIRTHDAY?" 🎂":""}</td><td class="pts">${x.avg.toFixed(1).replace(".",",")}</td><td>${x.pts}</td><td>${x.w}</td><td>${x.g}</td></tr>`);
-  h+=`</table><p class="note">Śr – średnio punktów na mecz, Pkt – suma, W – wygrane, M – mecze. Kolejność wg średniej (uczciwie przy różnej liczbie meczów), potem suma i wygrane. Top 4 grają w finale.</p>`;
+  let ai=0;
+  rows.forEach((x,i)=>{const o=isOut(x.p);const top=!o&&ai++<4;h+=`<tr class="${top?"top4":""}${o?" out":""}"><td>${i+1}</td><td>${esc(N(x.p))}${x.p===BIRTHDAY?" 🎂":""}${o?` <small>(${outLbl(x.p)})</small>`:""}</td><td class="pts">${x.avg.toFixed(1).replace(".",",")}</td><td>${x.pts}</td><td>${x.w}</td><td>${x.g}</td></tr>`});
+  h+=`</table><p class="note">Śr – średnio punktów na mecz, Pkt – suma, W – wygrane, M – mecze. Kolejność wg średniej (uczciwie przy różnej liczbie meczów), potem suma i wygrane. Do finału wchodzi top 4 obecnych.</p>`;
   return h;
 }
 function finalSeeds(){
-  let k=standings("k").map(x=>x.p).slice(0,4);
-  if(S.roster.k.includes(BIRTHDAY)&&!k.includes(BIRTHDAY)) k[Math.min(3,k.length-1)]=BIRTHDAY;
-  const a=standings("a").map(x=>x.p).slice(0,4);
-  return [[k[0],a[3]],[k[1],a[2]],[k[2],a[1]],[k[3],a[0]]].map(p=>p.filter(Boolean));
+  let k=standings("k").filter(x=>!isOut(x.p)).map(x=>x.p).slice(0,4);
+  const a=standings("a").filter(x=>!isOut(x.p)).map(x=>x.p).slice(0,4);
+  const n=Math.min(k.length,a.length);
+  if(n>0&&S.roster.k.includes(BIRTHDAY)&&!isOut(BIRTHDAY)&&!k.slice(0,n).includes(BIRTHDAY)) k[n-1]=BIRTHDAY;
+  const P=[];for(let i=0;i<n;i++)P.push([k[i],a[n-1-i]]);
+  return P;
 }
 function winLose(m){const s=getScore(m.id);if(!done(s)||+s[0]===+s[1])return null;return +s[0]>+s[1]?[m.a,m.b]:[m.b,m.a]}
 function vFinal(){
@@ -305,25 +320,32 @@ function vFinal(){
   if(!S.final){
     const P=finalSeeds();
     h+=`<div class="court"><h3><span>Podgląd par wg aktualnej tabeli</span></h3>${P.map((p,i)=>`<div class="pair"><div class="names">Para ${i+1}: ${p.map(N).map(esc).join(" + ")}</div></div>`).join("")}</div>`;
-    h+=`<p class="note">Dziecko 1 + Dorosły 4, D2 + Do3, D3 + Do2, D4 + Do1. Daniil zawsze gra (jako dziecko nr 4, jeśli nie jest w top 4).</p><button class="btn acc" id="mkfinal">Ustal pary finałowe</button>`;
+    h+=`<p class="note">Dziecko 1 + Dorosły 4, D2 + Do3, D3 + Do2, D4 + Do1. Daniil zawsze gra (jako ostatnie dziecko, jeśli nie jest w top). Grają tylko obecni.</p><button class="btn acc" id="mkfinal">Ustal pary finałowe</button>`;
     return h;
   }
-  const P=S.final.pairs, m1={id:"f_s1",a:P[0],b:P[3]}, m2={id:"f_s2",a:P[1],b:P[2]};
+  const P=S.final.pairs, nm=p=>p.map(N).map(esc).join("<br>");
+  const podium=(f,third)=>`<div class="sec">Podium · 15:20</div><div class="podium"><div class="pod p2"><div class="m">2</div>${nm(f[1])}</div><div class="pod p1"><div class="m">1</div>${nm(f[0])}</div>${third?`<div class="pod p3"><div class="m">3</div>${nm(third)}</div>`:"<div></div>"}</div><p class="note" style="text-align:center">Gratulacje! Teraz tort 🎂 (15:25–16:00)</p>`;
+  if(P.length<2){h+=`<p class="note">Za mało obecnych graczy na finał (potrzeba co najmniej 2 dzieci i 2 dorosłych).</p>`}
+  else if(P.length===2){const mf={id:"f_f",a:P[0],b:P[1]};h+=`<div class="sec">Finał</div>`+courtCard(mf,"Kort 1 · Para 1 vs Para 2");const f=winLose(mf);if(f)h+=podium(f,null)}
+  else if(P.length===3){const m2={id:"f_s2",a:P[1],b:P[2]};
+    h+=`<div class="sec">Półfinał (Para 1 czeka w finale)</div>`+courtCard(m2,"Kort 1 · Para 2 vs Para 3");const s2=winLose(m2);
+    if(s2){const mf={id:"f_f",a:P[0],b:s2[0]};h+=`<div class="sec">Finał</div>`+courtCard(mf,"Kort 1 · Finał");const f=winLose(mf);if(f)h+=podium(f,s2[1])}
+    else h+=`<p class="note">Wpisz wynik półfinału (bez remisu), żeby pokazać finał.</p>`}
+  else{const m1={id:"f_s1",a:P[0],b:P[3]}, m2={id:"f_s2",a:P[1],b:P[2]};
   h+=`<div class="sec">Półfinały</div>`+courtCard(m1,"Kort 1 · Para 1 vs Para 4")+courtCard(m2,"Kort 2 · Para 2 vs Para 3");
   const s1=winLose(m1), s2=winLose(m2);
   if(s1&&s2){
     const mf={id:"f_f",a:s1[0],b:s2[0]}, mt={id:"f_t",a:s1[1],b:s2[1]};
     h+=`<div class="sec">Finał i mecz o 3. miejsce</div>`+courtCard(mf,"Kort 1 · Finał")+courtCard(mt,"Kort 2 · O 3. miejsce");
     const f=winLose(mf), t=winLose(mt);
-    if(f&&t){const nm=p=>p.map(N).map(esc).join("<br>");
-      h+=`<div class="sec">Podium · 15:20</div><div class="podium"><div class="pod p2"><div class="m">2</div>${nm(f[1])}</div><div class="pod p1"><div class="m">1</div>${nm(f[0])}</div><div class="pod p3"><div class="m">3</div>${nm(t[0])}</div></div><p class="note" style="text-align:center">Gratulacje! Teraz tort 🎂 (15:25–16:00)</p>`}
-  } else h+=`<p class="note">Wpisz wyniki półfinałów (bez remisów), żeby pokazać finał.</p>`;
+    if(f&&t)h+=podium(f,t[0]);
+  } else h+=`<p class="note">Wpisz wyniki półfinałów (bez remisów), żeby pokazać finał.</p>`;}
   h+=`<button class="btn ghost" id="rmfinal">Ustal pary od nowa</button>`;
   return h;
 }
 function vMore(){
   const c=S.cfg,st=toMin(c.start),end=st+c.rounds*c.len;
-  let h=vSettings(false);
+  let h=vSettings(false)+`<div id="obecni"></div>`+vPresent();
   h+=`<div class="sec">Plan dnia</div><div class="sched">
   <div><b>13:00–${hm(st)}</b>Rozgrzewka</div><div><b>${hm(st)}–${hm(end)}</b>${c.rounds} ${c.rounds===1?"runda":(c.rounds%10>=2&&c.rounds%10<=4&&(c.rounds<10||c.rounds>20)?"rundy":"rund")} po ${c.len} min</div><div><b>14:55–15:20</b>Finał (pary mieszane)</div><div><b>15:20–15:25</b>Nagrody</div><div><b>15:25–16:00</b>Tort 🎂</div></div>`;
   h+=`<div class="sec">Edytuj składy</div><p class="note">Zmiana imienia nie zmienia wylosowanych par. Dodanie lub usunięcie gracza działa od następnej losowanej rundy (na 1 kort potrzeba 4 graczy, reszta pauzuje).</p><div class="edit">`;
@@ -347,11 +369,18 @@ function vRules(){
   "Potem tort! Gramy fair i dobrze się bawimy."];
   return `<h2>Zasady</h2><ol class="rules">${L.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`;
 }
+function vPresent(){
+  let h=`<div class="sec">Obecni – kto jest na miejscu?</div><p class="note">Odznacz osobę, która wyszła. Nie trafi do kolejnych losowań, a jej wyniki zostają. Zaznacz ponownie, gdy wróci – dostanie pierwszeństwo do gry.</p>`;
+  [["Dzieci","k"],["Dorośli","a"]].forEach(([l,g])=>{h+=`<div class="sec">${l} · obecnych ${act(g).length}/${S.roster[g].length}</div>`;
+    S.roster[g].forEach(p=>h+=`<label class="prow${isOut(p)?" off":""}"><input type="checkbox" data-away="${esc(p)}" ${isOut(p)?"":"checked"}><span>${esc(N(p))}</span><small>${isOut(p)?outLbl(p):""}</small></label>`)});
+  return h;
+}
+function inRoundMatches(r,p){const R=S.rev[r];if(!R)return false;return ["k","a"].some(g=>R[g].matches.some(([A,B])=>A.includes(p)||B.includes(p)))}
 function render(){
   MS={};
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===S.tab));
   document.getElementById("tround").textContent=S.tab==="final"?"Finał":"Runda "+(Math.min(S.round,ROUNDS()-1)+1);
-  document.getElementById("main").innerHTML={round:vRound,table:vTable,final:vFinal,rules:vRules,more:vMore}[S.tab]();
+  document.getElementById("main").innerHTML={round:vRound,table:vTable,final:vFinal,rules:vRules,more:vMore,present:vPresent}[S.tab]();
 }
 function setScore(id,side,val){
   const m=MS[id], cur=getScore(id,m.sig).slice();
@@ -390,6 +419,7 @@ document.addEventListener("click",e=>{
     rosterChange(()=>{S.roster[g]=S.roster[g].concat([v])});return}
   if(b.id==="cfgsave"){applyCfg();return}
   if(b.id==="reveal"){reveal(S.round);return}
+  if(b.id==="present"){if(ANIM)return;S.tab="present";save();render();scrollTo(0,0);return}
   if(b.id==="gofirst"){S.round=revealedCount();save();render();scrollTo(0,0);return}
   if(b.id==="reroll"){const r=S.round;if(ANIM||S.rev[r+1])return;if(roundHasScores(r)){alert("Ta runda ma już wyniki – nie można losować ponownie.");render();return}
     if(confirm(`Wylosować rundę ${r+1} od nowa?`)){delete S.rev[r];save();reveal(r)}return}
@@ -403,6 +433,11 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(t.dataset.away!==undefined){const p=t.dataset.away,leaving=!t.checked;if(ANIM){render();return}
+    if(leaving)S.away[p]=true;else delete S.away[p];save();
+    const r=revealedCount()-1;
+    if(leaving&&r>=0&&inRoundMatches(r,p)&&!roundHasScores(r)&&confirm(`${N(p)} – ${outLbl(p)}. Losować ponownie rundę ${r+1} bez tej osoby?`)){delete S.rev[r];S.round=r;S.tab="round";save();render();scrollTo(0,0);reveal(r);return}
+    render();return}
   if(t.dataset.in){const p=t.dataset.in.split("|");
     if(p[0]==="cfg"){setPend(p[1],parseInt(t.value,10),+t.dataset.min,+t.dataset.max);render();return}
     setScore(p[0],+p[1],t.value);render()}
