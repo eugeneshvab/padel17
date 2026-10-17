@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Padel Americano · 17.10</title>
+<style>
+:root{--bg:#f4f4f2;--card:#fff;--ink:#111;--mut:#6b6b6b;--line:#ddd;--acc:#e4572e;--acc2:#fde8e1}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+header{position:sticky;top:0;z-index:5;background:#111;color:#fff;padding:calc(env(safe-area-inset-top) + 8px) 12px 10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ttl{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#bbb}
+.timer{display:flex;align-items:center;gap:8px;margin-top:6px}
+.clock{font-variant-numeric:tabular-nums;font-size:44px;font-weight:700;letter-spacing:-.02em;flex:1}
+.clock.end{color:var(--acc)}
+.tb{min-width:56px;height:48px;border-radius:12px;background:#2a2a2a;color:#fff;font-weight:600;padding:0 12px}
+.tb.go{background:var(--acc)}
+main{padding:12px 12px calc(96px + env(safe-area-inset-bottom))}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{height:60px;font-size:14px;font-weight:600;color:var(--mut)}
+nav.tabs button.on{color:var(--acc);box-shadow:inset 0 3px 0 var(--acc)}
+.rnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.rnav button{width:56px;height:56px;border-radius:14px;background:#fff;border:1px solid var(--line);font-size:26px;font-weight:700}
+.rnav button:disabled{opacity:.3}
+.rnav .lbl{flex:1;text-align:center}
+.rnav .lbl b{display:block;font-size:22px}
+.rnav .lbl span{color:var(--mut);font-size:14px}
+.sec{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:14px 2px 6px;font-weight:700}
+.court{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 10px 8px;margin-bottom:10px}
+.court h3{margin:0 0 6px;font-size:13px;color:var(--mut);font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between}
+.court h3 .ok{color:var(--acc)}
+.pair{display:flex;align-items:center;gap:8px;padding:6px 0}
+.pair+.pair{border-top:1px dashed var(--line)}
+.names{flex:1;font-weight:600;font-size:17px;line-height:1.2}
+.names small{display:block;font-weight:400;color:var(--mut);font-size:13px}
+.pair.win .names{color:var(--acc)}
+.step{display:flex;align-items:center;gap:4px}
+.step button{width:46px;height:46px;border-radius:12px;background:#efefed;font-size:24px;font-weight:700}
+.step input{width:52px;height:46px;border:1px solid var(--line);border-radius:12px;text-align:center;font-size:22px;font-weight:700;background:#fff;color:var(--ink);-moz-appearance:textfield}
+.step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.sit{background:#fff;border:1px dashed #bbb;border-radius:12px;padding:10px 12px;color:var(--mut);font-size:15px;margin-bottom:6px}
+.sit b{color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#e6e6e3;border-radius:12px;padding:3px;margin-bottom:10px}
+.seg button{height:44px;border-radius:10px;font-weight:700;color:var(--mut)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+th,td{padding:11px 8px;text-align:right;font-variant-numeric:tabular-nums}
+th{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;background:#fafaf8}
+td:nth-child(2),th:nth-child(2){text-align:left}
+td:first-child,th:first-child{width:34px;text-align:center;color:var(--mut)}
+tr+tr td{border-top:1px solid #eee}
+tr.top4 td{background:var(--acc2)}
+td.pts{font-weight:800;font-size:18px}
+.note{color:var(--mut);font-size:13px;margin:8px 2px}
+.btn{display:block;width:100%;height:54px;border-radius:14px;background:#111;color:#fff;font-weight:700;font-size:17px;margin:8px 0}
+.btn.acc{background:var(--acc)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:#fff;color:#b00020;border:1px solid #e3b3bb}
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:end;gap:6px;margin:10px 0}
+.pod{background:#fff;border:1px solid var(--line);border-radius:14px 14px 0 0;text-align:center;padding:10px 6px;font-weight:600;font-size:14px}
+.pod .m{font-size:28px;font-weight:800}
+.pod.p1{min-height:150px;border-color:var(--acc);background:var(--acc2)}.pod.p2{min-height:120px}.pod.p3{min-height:100px}
+.edit label{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin-bottom:6px}
+.edit label span{width:90px;color:var(--mut);font-size:14px}
+.edit input{flex:1;height:42px;border:0;font-size:17px;font-weight:600;background:transparent;color:var(--ink)}
+.sched{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 12px}
+.sched div{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #eee}.sched div:last-child{border:0}
+.sched b{width:110px;font-variant-numeric:tabular-nums}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><span class="ttl">Padel · Urodziny Daniila 13</span><span class="ttl" id="tround"></span></div>
+  <div class="timer">
+    <div class="clock" id="clock">10:00</div>
+    <button class="tb go" id="tstart">Start</button>
+    <button class="tb" id="treset" aria-label="Reset">↺</button>
+  </div>
+</header>
+<main id="main"></main>
+<nav class="tabs">
+  <button data-tab="round" class="on">Runda</button>
+  <button data-tab="table">Tabela</button>
+  <button data-tab="final">FINAŁ</button>
+  <button data-tab="more">Więcej</button>
+</nav>
+<script>
+const DRAW = {"kids":[{"matches":[[["Maciek","Dima"],["Dawid","Stefan"]],[["Bartek","Daniil"],["Hubert","Staś"]]],"sit":["Hugo","Piotrek"]},{"matches":[[["Hugo","Daniil"],["Maciek","Staś"]],[["Piotrek","Dawid"],["Bartek","Dima"]]],"sit":["Hubert","Stefan"]},{"matches":[[["Hugo","Maciek"],["Piotrek","Staś"]],[["Hubert","Dawid"],["Dima","Stefan"]]],"sit":["Bartek","Daniil"]},{"matches":[[["Hugo","Dawid"],["Piotrek","Daniil"]],[["Maciek","Bartek"],["Hubert","Stefan"]]],"sit":["Staś","Dima"]},{"matches":[[["Hugo","Bartek"],["Dima","Daniil"]],[["Piotrek","Hubert"],["Staś","Stefan"]]],"sit":["Maciek","Dawid"]},{"matches":[[["Hugo","Piotrek"],["Maciek","Hubert"]],[["Bartek","Staś"],["Dawid","Dima"]]],"sit":["Stefan","Daniil"]},{"matches":[[["Hugo","Stefan"],["Staś","Dawid"]],[["Piotrek","Bartek"],["Maciek","Daniil"]]],"sit":["Hubert","Dima"]},{"matches":[[["Hugo","Staś"],["Maciek","Stefan"]],[["Piotrek","Dima"],["Hubert","Daniil"]]],"sit":["Bartek","Dawid"]},{"matches":[[["Hugo","Hubert"],["Bartek","Dawid"]],[["Staś","Dima"],["Stefan","Daniil"]]],"sit":["Piotrek","Maciek"]},{"matches":[[["Piotrek","Maciek"],["Hubert","Dima"]],[["Bartek","Stefan"],["Dawid","Daniil"]]],"sit":["Hugo","Staś"]}],"adults":[{"matches":[[["Eugene","Roman"],["Vika","Jana"]],[["Max","Katsiaryna"],["Yury","Lena"]]],"sit":["Marina","Alex"]},{"matches":[[["Marina","Katsiaryna"],["Vika","Yury"]],[["Eugene","Jana"],["Alex","Lena"]]],"sit":["Roman","Max"]},{"matches":[[["Marina","Max"],["Roman","Alex"]],[["Eugene","Vika"],["Katsiaryna","Lena"]]],"sit":["Jana","Yury"]},{"matches":[[["Marina","Eugene"],["Jana","Max"]],[["Roman","Yury"],["Vika","Alex"]]],"sit":["Katsiaryna","Lena"]},{"matches":[[["Marina","Yury"],["Max","Lena"]],[["Roman","Jana"],["Alex","Katsiaryna"]]],"sit":["Eugene","Vika"]},{"matches":[[["Marina","Lena"],["Yury","Katsiaryna"]],[["Eugene","Max"],["Roman","Vika"]]],"sit":["Jana","Alex"]},{"matches":[[["Marina","Alex"],["Roman","Katsiaryna"]],[["Eugene","Lena"],["Jana","Yury"]]],"sit":["Vika","Max"]},{"matches":[[["Eugene","Yury"],["Roman","Max"]],[["Vika","Lena"],["Jana","Alex"]]],"sit":["Marina","Katsiaryna"]},{"matches":[[["Marina","Vika"],["Eugene","Alex"]],[["Jana","Katsiaryna"],["Max","Yury"]]],"sit":["Roman","Lena"]},{"matches":[[["Marina","Roman"],["Jana","Lena"]],[["Vika","Katsiaryna"],["Max","Alex"]]],"sit":["Eugene","Yury"]}]}
+;
+const ROUNDS = DRAW.kids.length;
+const KIDS = ["Hugo","Piotrek","Maciek","Bartek","Hubert","Staś","Dawid","Dima","Stefan","Daniil"];
+const ADULTS = ["Marina","Eugene","Roman","Vika","Jana","Max","Alex","Yury","Katsiaryna","Lena"];
+const BIRTHDAY = "Daniil";
+const ROUND_SEC = 600;
+const KEY = "padel17_v1";
+const START_MIN = 13*60+15;
+
+function fresh(){return {tab:"round",round:0,scores:{},names:{},board:"k",final:null,timer:{running:false,endAt:0,left:ROUND_SEC}}}
+let S; try{S=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){S=fresh()}
+function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+const N = id => S.names[id] || id;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hm = m => String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+
+// matches: list of {id, court, a:[p,p], b:[p,p], grp}
+function roundMatches(r){
+  const out=[];
+  DRAW.kids[r].matches.forEach((m,i)=>out.push({id:`k${r}_${i}`,court:i+1,a:m[0],b:m[1],grp:"k"}));
+  DRAW.adults[r].matches.forEach((m,i)=>out.push({id:`a${r}_${i}`,court:i+3,a:m[0],b:m[1],grp:"a"}));
+  return out;
+}
+function getScore(id){const s=S.scores[id];return s?s:[null,null]}
+function done(s){return s[0]!==null&&s[1]!==null&&s[0]!==""&&s[1]!==""}
+
+function standings(grp){
+  const list=grp==="k"?KIDS:ADULTS, t={};
+  list.forEach(p=>t[p]={p,pts:0,w:0,g:0});
+  for(let r=0;r<ROUNDS;r++) roundMatches(r).filter(m=>m.grp===grp).forEach(m=>{
+    const s=getScore(m.id); if(!done(s))return;
+    const a=+s[0],b=+s[1];
+    m.a.forEach(p=>{t[p].pts+=a;t[p].g++;if(a>b)t[p].w++});
+    m.b.forEach(p=>{t[p].pts+=b;t[p].g++;if(b>a)t[p].w++});
+  });
+  return Object.values(t).sort((x,y)=>y.pts-x.pts||y.w-x.w||x.g-y.g||N(x.p).localeCompare(N(y.p),"pl"));
+}
+
+function stepper(id,side,val){
+  return `<div class="step"><button data-st="${id}|${side}|-1" aria-label="minus">−</button><input inputmode="numeric" pattern="[0-9]*" type="number" min="0" data-in="${id}|${side}" value="${val===null?"":val}" placeholder="–"><button data-st="${id}|${side}|1" aria-label="plus">+</button></div>`;
+}
+function pairRow(id,side,pl,s,sub){
+  const me=s[side],ot=s[1-side],win=done(s)&&+me>+ot;
+  return `<div class="pair${win?" win":""}"><div class="names">${pl.map(p=>esc(N(p))).join(" + ")}${sub?`<small>${esc(sub)}</small>`:""}</div>${stepper(id,side,me)}</div>`;
+}
+function courtCard(m,title){
+  const s=getScore(m.id);
+  return `<div class="court"><h3><span>${title}</span>${done(s)?'<span class="ok">✓ zapisane</span>':""}</h3>${pairRow(m.id,0,m.a,s)}${pairRow(m.id,1,m.b,s)}</div>`;
+}
+
+function vRound(){
+  const r=S.round, ms=roundMatches(r), st=START_MIN+r*10;
+  let h=`<div class="rnav"><button id="prev" ${r===0?"disabled":""}>‹</button><div class="lbl"><b>Runda ${r+1} / ${ROUNDS}</b><span>${hm(st)}–${hm(st+10)}</span></div><button id="next" ${r===ROUNDS-1?"disabled":""}>›</button></div>`;
+  h+=`<div class="sec">Dzieci · korty 1–2</div>`;
+  ms.filter(m=>m.grp==="k").forEach(m=>h+=courtCard(m,"Kort "+m.court));
+  h+=`<div class="sit">Pauza: <b>${DRAW.kids[r].sit.map(N).map(esc).join(", ")}</b></div>`;
+  h+=`<div class="sec">Dorośli · korty 3–4</div>`;
+  ms.filter(m=>m.grp==="a").forEach(m=>h+=courtCard(m,"Kort "+m.court));
+  h+=`<div class="sit">Pauza: <b>${DRAW.adults[r].sit.map(N).map(esc).join(", ")}</b></div>`;
+  h+=`<p class="note">Każdy gracz dostaje tyle punktów, ile zdobyła jego para. Remis = bez zwycięstwa.</p>`;
+  if(r<ROUNDS-1) h+=`<button class="btn" id="next2">Następna runda ›</button>`;
+  else h+=`<button class="btn acc" data-go="final">Przejdź do FINAŁU</button>`;
+  return h;
+}
+function vTable(){
+  const g=S.board, rows=standings(g);
+  let h=`<div class="seg"><button data-board="k" class="${g==="k"?"on":""}">Dzieci</button><button data-board="a" class="${g==="a"?"on":""}">Dorośli</button></div>`;
+  h+=`<table><tr><th>#</th><th>Gracz</th><th>Pkt</th><th>W</th><th>M</th></tr>`;
+  rows.forEach((x,i)=>h+=`<tr class="${i<4?"top4":""}"><td>${i+1}</td><td>${esc(N(x.p))}${x.p===BIRTHDAY?" 🎂":""}</td><td class="pts">${x.pts}</td><td>${x.w}</td><td>${x.g}</td></tr>`);
+  h+=`</table><p class="note">Pkt – punkty, W – wygrane, M – rozegrane mecze. Kolejność: punkty, potem wygrane. Top 4 grają w finale.</p>`;
+  return h;
+}
+function finalSeeds(){
+  let k=standings("k").map(x=>x.p).slice(0,4);
+  if(!k.includes(BIRTHDAY)) k[3]=BIRTHDAY;
+  const a=standings("a").map(x=>x.p).slice(0,4);
+  return [[k[0],a[3]],[k[1],a[2]],[k[2],a[1]],[k[3],a[0]]];
+}
+function winLose(id,p,q){const s=getScore(id);if(!done(s)||+s[0]===+s[1])return null;return +s[0]>+s[1]?[p,q]:[q,p]}
+function vFinal(){
+  let h=`<div class="sec">Finał 14:55–15:20 · pary mieszane</div>`;
+  if(!S.final){
+    const P=finalSeeds();
+    h+=`<div class="court"><h3><span>Podgląd par wg aktualnej tabeli</span></h3>${P.map((p,i)=>`<div class="pair"><div class="names">Para ${i+1}: ${p.map(N).map(esc).join(" + ")}</div></div>`).join("")}</div>`;
+    h+=`<p class="note">Dziecko 1 + Dorosły 4, D2 + Do3, D3 + Do2, D4 + Do1. Daniil zawsze gra (jako dziecko nr 4, jeśli nie jest w top 4).</p>`;
+    h+=`<button class="btn acc" id="mkfinal">Ustal pary finałowe</button>`;
+    return h;
+  }
+  const P=S.final.pairs;
+  h+=`<div class="sec">Półfinały</div>`;
+  h+=courtCard({id:"f_s1",a:P[0],b:P[3]},"Kort 1 · Para 1 vs Para 4");
+  h+=courtCard({id:"f_s2",a:P[1],b:P[2]},"Kort 2 · Para 2 vs Para 3");
+  const s1=winLose("f_s1",P[0],P[3]), s2=winLose("f_s2",P[1],P[2]);
+  if(s1&&s2){
+    h+=`<div class="sec">Finał i mecz o 3. miejsce</div>`;
+    h+=courtCard({id:"f_f",a:s1[0],b:s2[0]},"Kort 1 · Finał");
+    h+=courtCard({id:"f_t",a:s1[1],b:s2[1]},"Kort 2 · O 3. miejsce");
+    const f=winLose("f_f",s1[0],s2[0]), t=winLose("f_t",s1[1],s2[1]);
+    if(f&&t){
+      const nm=p=>p.map(N).map(esc).join("<br>");
+      h+=`<div class="sec">Podium · 15:20</div><div class="podium"><div class="pod p2"><div class="m">2</div>${nm(f[1])}</div><div class="pod p1"><div class="m">1</div>${nm(f[0])}</div><div class="pod p3"><div class="m">3</div>${nm(t[0])}</div></div><p class="note" style="text-align:center">Gratulacje! Teraz tort 🎂 (15:25–16:00)</p>`;
+    }
+  } else h+=`<p class="note">Wpisz wyniki półfinałów (bez remisów), żeby pokazać finał.</p>`;
+  h+=`<button class="btn ghost" id="rmfinal">Ustal pary od nowa</button>`;
+  return h;
+}
+function vMore(){
+  let h=`<div class="sec">Plan dnia</div><div class="sched">
+  <div><b>13:00–13:15</b>Rozgrzewka</div><div><b>13:15–14:55</b>10 rund po 10 min</div><div><b>14:55–15:20</b>Finał (pary mieszane)</div><div><b>15:20–15:25</b>Nagrody</div><div><b>15:25–16:00</b>Tort 🎂</div></div>`;
+  h+=`<div class="sec">Edytuj składy</div><p class="note">Ktoś nie dotarł? Wpisz imię zastępcy – zmieni się w całym losowaniu i tabeli.</p><div class="edit">`;
+  [["Dzieci",KIDS],["Dorośli",ADULTS]].forEach(([t,l])=>{h+=`<div class="sec">${t}</div>`;l.forEach(p=>h+=`<label><span>${esc(p)}</span><input data-nm="${esc(p)}" value="${esc(N(p))}"></label>`)});
+  h+=`</div><div class="sec">Zasady</div><p class="note">Pary zmieniają się co rundę. Mecz trwa 10 min. Każda wygrana wymiana = 1 punkt (bez gemów i setów), każdy serwuje 2 punkty. Każdy gracz dostaje punkty swojej pary. Wygrywa najwięcej punktów, przy remisie – więcej wygranych.</p>`;
+  h+=`<button class="btn danger" id="reset">Wyczyść wszystkie wyniki</button>`;
+  return h;
+}
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===S.tab));
+  document.getElementById("tround").textContent=S.tab==="final"?"Finał":"Runda "+(S.round+1);
+  const v={round:vRound,table:vTable,final:vFinal,more:vMore}[S.tab]();
+  document.getElementById("main").innerHTML=v;
+}
+function setScore(id,side,val){
+  const s=getScore(id).slice();
+  s[side]=(val===""||val===null||isNaN(val))?null:Math.max(0,Math.min(99,parseInt(val,10)));
+  if(s[0]===null&&s[1]===null) delete S.scores[id]; else S.scores[id]=s;
+  save();
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  if(b.dataset.tab){S.tab=b.dataset.tab;save();render();scrollTo(0,0);return}
+  if(b.dataset.go){S.tab=b.dataset.go;save();render();scrollTo(0,0);return}
+  if(b.dataset.board){S.board=b.dataset.board;save();render();return}
+  if(b.dataset.st){const [id,side,d]=b.dataset.st.split("|");const cur=getScore(id)[+side];const nv=Math.max(0,(cur===null?0:+cur)+ +d);setScore(id,+side,nv);
+    const o=getScore(id);if(o[1-side]===null){setScore(id,1-side,0)}render();return}
+  if(b.id==="prev"&&S.round>0){S.round--;save();render();scrollTo(0,0)}
+  if((b.id==="next"||b.id==="next2")&&S.round<ROUNDS-1){S.round++;save();render();scrollTo(0,0)}
+  if(b.id==="mkfinal"){S.final={pairs:finalSeeds()};save();render()}
+  if(b.id==="rmfinal"&&confirm("Ustalić pary finałowe od nowa? Wyniki finału zostaną usunięte.")){S.final=null;["f_s1","f_s2","f_f","f_t"].forEach(k=>delete S.scores[k]);save();render()}
+  if(b.id==="reset"&&confirm("Na pewno wyczyścić WSZYSTKIE wyniki?")&&confirm("To nieodwracalne. Kontynuować?")){const n=S.names;S=fresh();S.names=n;save();render()}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.in){const [id,side]=t.dataset.in.split("|");setScore(id,+side,t.value);const o=getScore(id);if(o[side]!==null&&o[1-side]===null)setScore(id,1-side,0);render()}
+  if(t.dataset.nm!==undefined){const v=t.value.trim();if(!v||v===t.dataset.nm)delete S.names[t.dataset.nm];else S.names[t.dataset.nm]=v.slice(0,20);save()}
+});
+document.addEventListener("focusin",e=>{if(e.target.dataset&&e.target.dataset.in)e.target.select()});
+
+// ---- timer ----
+let actx=null, wake=null, beeped=false;
+const clockEl=document.getElementById("clock"), startEl=document.getElementById("tstart");
+function unlockAudio(){try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume();const o=actx.createOscillator(),g=actx.createGain();g.gain.value=0.0001;o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+0.02)}catch(e){}}
+function beep(){
+  try{if(!actx)return;const t0=actx.currentTime;
+    for(let i=0;i<8;i++){const o=actx.createOscillator(),g=actx.createGain();o.type="square";o.frequency.value=i%2?1320:880;
+      const t=t0+i*0.32;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.9,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);
+      o.connect(g).connect(actx.destination);o.start(t);o.stop(t+0.28)}}catch(e){}
+  if(navigator.vibrate)navigator.vibrate([400,150,400,150,800]);
+}
+async function wakeOn(){try{if("wakeLock" in navigator&&!wake){wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>wake=null)}}catch(e){}}
+function wakeOff(){try{wake&&wake.release();wake=null}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.timer.running)wakeOn()});
+function leftNow(){const T=S.timer;return T.running?Math.max(0,Math.round((T.endAt-Date.now())/1000)):T.left}
+function tick(){
+  const l=leftNow();clockEl.textContent=String(Math.floor(l/60)).padStart(2,"0")+":"+String(l%60).padStart(2,"0");
+  clockEl.classList.toggle("end",l===0);
+  startEl.textContent=S.timer.running?"Pauza":(l===0?"Start":(l<ROUND_SEC?"Wznów":"Start"));
+  startEl.classList.toggle("go",!S.timer.running);
+  if(S.timer.running&&l===0){S.timer.running=false;S.timer.left=0;save();if(!beeped){beeped=true;beep()}wakeOff()}
+}
+startEl.onclick=()=>{unlockAudio();const T=S.timer;
+  if(T.running){T.left=leftNow();T.running=false;wakeOff()}
+  else{if(T.left<=0)T.left=ROUND_SEC;T.endAt=Date.now()+T.left*1000;T.running=true;beeped=false;wakeOn()}
+  save();tick()};
+document.getElementById("treset").onclick=()=>{S.timer={running:false,endAt:0,left:ROUND_SEC};beeped=false;wakeOff();save();tick()};
+setInterval(tick,250);tick();render();
+</script>
+</body>
+</html>
