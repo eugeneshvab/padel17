@@ -21,8 +21,8 @@ header{position:sticky;top:0;z-index:5;background:#111;color:#fff;padding:calc(e
 .tb{min-width:56px;height:48px;border-radius:12px;background:#2a2a2a;color:#fff;font-weight:600;padding:0 12px}
 .tb.go{background:var(--acc)}
 main{padding:12px 12px calc(96px + env(safe-area-inset-bottom))}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav.tabs button{height:60px;font-size:14px;font-weight:600;color:var(--mut)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{height:60px;font-size:13px;padding:0 2px;font-weight:600;color:var(--mut)}
 nav.tabs button.on{color:var(--acc);box-shadow:inset 0 3px 0 var(--acc)}
 .rnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .rnav button{width:56px;height:56px;border-radius:14px;background:#fff;border:1px solid var(--line);font-size:26px;font-weight:700}
@@ -83,6 +83,10 @@ td.pts{font-weight:800;font-size:18px}
 .nm{display:inline-block;min-width:3.5em}.sit .nm{min-width:0}
 .pop .court,.pop .sit{animation:pop .45s ease-out both}
 @keyframes pop{0%{transform:scale(.94);opacity:.2}60%{transform:scale(1.02);opacity:1}100%{transform:none}}
+.rules{list-style:none;padding:0;margin:4px 0 0;counter-reset:r}
+.rules li{counter-increment:r;position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 14px 14px 58px;margin-bottom:10px;font-size:21px;line-height:1.35;font-weight:500}
+.rules li::before{content:counter(r);position:absolute;left:12px;top:12px;width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center}
+.rules h2{font-size:26px;margin:6px 2px 12px}
 </style>
 </head>
 <body>
@@ -99,6 +103,7 @@ td.pts{font-weight:800;font-size:18px}
   <button data-tab="round" class="on">Runda</button>
   <button data-tab="table">Tabela</button>
   <button data-tab="final">FINAŁ</button>
+  <button data-tab="rules">Zasady</button>
   <button data-tab="more">Więcej</button>
 </nav>
 <script>
@@ -325,15 +330,28 @@ function vMore(){
   [["Dzieci","k"],["Dorośli","a"]].forEach(([t,g])=>{h+=`<div class="sec">${t} (${S.roster[g].length})</div>`;
     S.roster[g].forEach(p=>h+=`<label><span>${esc(p)}</span><input data-nm="${esc(p)}" value="${esc(N(p))}"><button class="x" data-rm="${g}|${esc(p)}" aria-label="usuń">×</button></label>`);
     h+=`<label><input data-addname="${g}" placeholder="+ Dodaj gracza"><button class="x add" data-add="${g}">Dodaj</button></label>`});
-  h+=`</div><div class="sec">Zasady</div><p class="note">Pary zmieniają się co rundę. Mecz trwa ${c.len} min. Każda wygrana wymiana = 1 punkt (bez gemów i setów), każdy serwuje 2 punkty. Każdy gracz dostaje punkty swojej pary.</p>`;
+  h+=`</div><div class="sec">Zasady</div><button class="btn ghost" data-go="rules">Zasady do przeczytania na głos ›</button>`;
   h+=`<button class="btn danger" id="reset">Wyczyść wszystkie wyniki</button>`;
   return h;
+}
+function plural(n,one,few,many){if(n===1)return one;const d=n%10,dd=n%100;return d>=2&&d<=4&&(dd<12||dd>14)?few:many}
+function vRules(){
+  const c=S.cfg,st=toMin(c.start),end=st+c.rounds*c.len;
+  const L=[`Gramy ${c.rounds} ${plural(c.rounds,"rundę","rundy","rund")} po ${c.len} ${plural(c.len,"minutę","minuty","minut")}, od ${hm(st)} do ${hm(end)}. W każdej rundzie losujemy nowego partnera i nowych rywali.`,
+  "Dzieci grają na kortach 1 i 2, dorośli na kortach 3 i 4.",
+  "Gramy do sygnału. Każda wygrana wymiana to 1 punkt.",
+  "Każdy serwuje 2 razy, potem serwuje następna osoba.",
+  "Po sygnale mówimy wynik. Każdy z pary dostaje tyle punktów, ile zdobyła para.",
+  "Kto pauzuje, zbiera piłki i pilnuje wyniku.",
+  "Na koniec najlepsze dzieci i najlepsi dorośli tworzą mieszane pary i grają finał. Solenizant gra w finale zawsze!",
+  "Potem tort! Gramy fair i dobrze się bawimy."];
+  return `<h2>Zasady</h2><ol class="rules">${L.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`;
 }
 function render(){
   MS={};
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===S.tab));
   document.getElementById("tround").textContent=S.tab==="final"?"Finał":"Runda "+(Math.min(S.round,ROUNDS()-1)+1);
-  document.getElementById("main").innerHTML={round:vRound,table:vTable,final:vFinal,more:vMore}[S.tab]();
+  document.getElementById("main").innerHTML={round:vRound,table:vTable,final:vFinal,rules:vRules,more:vMore}[S.tab]();
 }
 function setScore(id,side,val){
   const m=MS[id], cur=getScore(id,m.sig).slice();
