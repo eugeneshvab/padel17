@@ -78,6 +78,11 @@ td.pts{font-weight:800;font-size:18px}
 .warn{margin:6px 0 4px;padding:8px 10px;border-radius:10px;background:var(--acc2);color:#9a3412;font-size:14px}
 .x{min-width:40px;height:40px;border-radius:10px;background:#efefed;font-size:20px;font-weight:700;color:var(--mut)}
 .x.add{font-size:14px;padding:0 12px;color:var(--ink)}
+.btn.big{height:72px;font-size:21px;margin:6px 0 4px}
+.court.q .names{color:#bbb;letter-spacing:.04em}.court.spin .names{color:var(--ink)}.court.spin{border-color:var(--acc)}
+.nm{display:inline-block;min-width:3.5em}.sit .nm{min-width:0}
+.pop .court,.pop .sit{animation:pop .45s ease-out both}
+@keyframes pop{0%{transform:scale(.94);opacity:.2}60%{transform:scale(1.02);opacity:1}100%{transform:none}}
 </style>
 </head>
 <body>
@@ -101,13 +106,14 @@ const DEF_KIDS = ["Hugo","Piotrek","Maciek","Bartek","Hubert","Staś","Dawid","D
 const DEF_ADULTS = ["Marina","Eugene","Roman","Vika","Jana","Max","Alex","Yury","Katsiaryna","Lena"];
 const BIRTHDAY = "Daniil";
 const MAXR = 20, ATTEMPTS = 120;
-const KEY = "padel17_v2";
+const KEY = "padel17_v3";
 const FINAL_AT = 14*60+55;
 
-function fresh(){return {tab:"round",round:0,scores:{},names:{},board:"k",final:null,cfgSeen:false,
+function fresh(){return {tab:"round",round:0,scores:{},names:{},board:"k",final:null,cfgSeen:false,rev:{},
   cfg:{len:10,rounds:10,start:"13:15"},roster:{k:DEF_KIDS.slice(),a:DEF_ADULTS.slice()},
   timer:{running:false,endAt:0,left:600}}}
 let S; try{S=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){S=fresh()}
+try{if(!localStorage.getItem(KEY)){const o=JSON.parse(localStorage.getItem("padel17_v2")||"null");if(o){["cfg","cfgSeen","names","roster"].forEach(k=>{if(o[k]!==undefined)S[k]=o[k]})}}localStorage.removeItem("padel17_v2_draw")}catch(e){}
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
 const N = id => S.names[id] || id;
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -115,8 +121,8 @@ const hm = m => String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(m%60).pad
 const toMin = s => {const [h,m]=String(s).split(":").map(Number);return (h||0)*60+(m||0)};
 const RS = () => S.cfg.len*60;
 
-// ---------- draw generator (seeded, prefix-stable: always builds MAXR rounds) ----------
-function hash(s){let h=2166136261;for(const c of s){h^=c.codePointAt(0);h=Math.imul(h,16777619)}return h>>>0}
+// ---------- live draw engine: real randomness + lookahead over remaining planned rounds ----------
+function rand32(){try{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]}catch(e){return Math.floor(Math.random()*4294967296)}}
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const STRUCTS={};
 function structs(k){ // all ways to split 4k slots into k matches of 2v2
@@ -126,46 +132,62 @@ function structs(k){ // all ways to split 4k slots into k matches of 2v2
   for(const pairs of pm){(function rec(rest,acc){if(!rest.length){out.push(acc);return}for(let i=1;i<rest.length;i++){rec(rest.filter((_,j)=>j!==0&&j!==i),acc.concat([[rest[0],rest[i]]]))}})(pairs,[])}
   return STRUCTS[k]=out;
 }
-function genGroup(players,tag){
-  const n=players.length, c=Math.min(2,Math.floor(n/4)), sitN=n-4*c;
-  if(c===0) return {rounds:Array.from({length:MAXR},()=>({matches:[],sit:players.slice()}))};
-  const ST=structs(c), seed=hash(tag+"|"+players.join("|"));
-  let best=null,bestScore=Infinity;
-  for(let at=0;at<ATTEMPTS;at++){
-    const R=rng(seed+at*7919), P=Array.from({length:n},()=>new Array(n).fill(0)), O=Array.from({length:n},()=>new Array(n).fill(0));
-    const sitCnt=new Array(n).fill(0); let last=new Set(), rounds=[], score=0;
-    for(let r=0;r<MAXR;r++){
-      const ord=[...Array(n).keys()].map(i=>[i,R()]).sort((x,y)=>x[1]-y[1]).map(x=>x[0]);
-      ord.sort((x,y)=>(sitCnt[x]-sitCnt[y])||((last.has(x)?1:0)-(last.has(y)?1:0)));
-      const sit=ord.slice(0,sitN), play=ord.slice(sitN).map(i=>[i,R()]).sort((x,y)=>x[1]-y[1]).map(x=>x[0]);
-      let bs=null,bc=Infinity;
-      for(const s of ST){let cost=0;
-        for(const [p1,p2] of s){const a=play[p1[0]],b=play[p1[1]],x=play[p2[0]],y=play[p2[1]];
-          cost+=1000*(P[a][b]+P[x][y])+10*(O[a][x]+O[a][y]+O[b][x]+O[b][y]);if(cost>=bc)break}
-        if(cost<bc){bc=cost;bs=s}}
-      const ms=bs.map(([p1,p2])=>[[play[p1[0]],play[p1[1]]],[play[p2[0]],play[p2[1]]]]);
-      ms.forEach(([A,B])=>{P[A[0]][A[1]]++;P[A[1]][A[0]]++;P[B[0]][B[1]]++;P[B[1]][B[0]]++;
-        A.forEach(a=>B.forEach(b=>{O[a][b]++;O[b][a]++}))});
-      let b2b=0; sit.forEach(i=>{if(last.has(i))b2b++;sitCnt[i]++});
-      score+=(bc+5000*b2b)*Math.pow(MAXR-r,3);
-      last=new Set(sit); rounds.push({matches:ms.map(([A,B])=>[A.map(i=>players[i]),B.map(i=>players[i])]),sit:sit.map(i=>players[i])});
-      if(score>=bestScore)break;
-    }
-    if(score<bestScore){bestScore=score;best=rounds}
+// history from revealed rounds (array of {matches,sit} for this group); players no longer in roster are ignored;
+// "sat out" = did not play in that round (so a newly added player counts as having sat out earlier rounds)
+function histOf(players,rounds){
+  const n=players.length, idx=new Map(players.map((p,i)=>[p,i]));
+  const P=Array.from({length:n},()=>new Array(n).fill(0)), O=Array.from({length:n},()=>new Array(n).fill(0)), sit=new Array(n).fill(0);
+  let last=new Array(n).fill(false);
+  for(const g of rounds){const playing=new Array(n).fill(false);
+    for(const [A,B] of g.matches){const a=A.map(p=>idx.get(p)).filter(i=>i!==undefined), b=B.map(p=>idx.get(p)).filter(i=>i!==undefined);
+      [...a,...b].forEach(i=>playing[i]=true);
+      if(a.length===2){P[a[0]][a[1]]++;P[a[1]][a[0]]++} if(b.length===2){P[b[0]][b[1]]++;P[b[1]][b[0]]++}
+      a.forEach(x=>b.forEach(y=>{O[x][y]++;O[y][x]++}))}
+    last=playing.map(p=>!p); last.forEach((s,i)=>{if(s)sit[i]++});
   }
-  return {rounds:best};
+  return {P,O,sit,last};
 }
-let DRAW=null,DRAWKEY="";
-function draw(){const k=JSON.stringify(S.roster)+"#v1";if(k!==DRAWKEY){
-  let c=null;try{c=JSON.parse(localStorage.getItem(KEY+"_draw")||"null")}catch(e){}
-  if(c&&c.key===k)DRAW=c.D;else{DRAW={k:genGroup(S.roster.k,"k").rounds,a:genGroup(S.roster.a,"a").rounds};try{localStorage.setItem(KEY+"_draw",JSON.stringify({key:k,D:DRAW}))}catch(e){}}
-  DRAWKEY=k}return DRAW}
+function cloneH(H){return {P:H.P.map(r=>r.slice()),O:H.O.map(r=>r.slice()),sit:H.sit.slice(),last:H.last.slice()}}
+function step(n,c,sitN,ST,H,R){
+  const ord=[...Array(n).keys()].map(i=>[i,R()]).sort((x,y)=>x[1]-y[1]).map(x=>x[0]);
+  ord.sort((x,y)=>(H.sit[x]-H.sit[y])||((H.last[x]?1:0)-(H.last[y]?1:0)));
+  const sit=ord.slice(0,sitN), play=ord.slice(sitN);
+  let bc=Infinity, ties=[];
+  for(const s of ST){let cost=0;
+    for(const [p1,p2] of s){const a=play[p1[0]],b=play[p1[1]],x=play[p2[0]],y=play[p2[1]];
+      cost+=1000*(H.P[a][b]+H.P[x][y])+(H.O[a][x]+H.O[a][y]+H.O[b][x]+H.O[b][y]);if(cost>bc)break}
+    if(cost<bc){bc=cost;ties=[s]}else if(cost===bc)ties.push(s)}
+  const bs=ties[Math.floor(R()*ties.length)];
+  const ms=bs.map(([p1,p2])=>[[play[p1[0]],play[p1[1]]],[play[p2[0]],play[p2[1]]]]);
+  let pr=0,orp=0,b2b=0;
+  ms.forEach(([A,B])=>{pr+=H.P[A[0]][A[1]]+H.P[B[0]][B[1]];A.forEach(a=>B.forEach(b=>orp+=H.O[a][b]));
+    H.P[A[0]][A[1]]++;H.P[A[1]][A[0]]++;H.P[B[0]][B[1]]++;H.P[B[1]][B[0]]++;A.forEach(a=>B.forEach(b=>{H.O[a][b]++;H.O[b][a]++}))});
+  const last=new Array(n).fill(false); sit.forEach(i=>{if(H.last[i])b2b++;H.sit[i]++;last[i]=true}); H.last=last;
+  return {ms,sit,pr,orp,b2b};
+}
+// returns next round {matches,sit} in names; remaining = planned rounds left incl. this one
+function drawNext(players,rounds,remaining,opt){
+  opt=opt||{};const ms=opt.ms||200, maxA=opt.maxAttempts||5000, minA=opt.minAttempts||30;
+  const n=players.length, c=Math.min(2,Math.floor(n/4)), sitN=n-4*c;
+  if(c===0)return {matches:[],sit:players.slice()};
+  const ST=structs(c), H0=histOf(players,rounds), t0=Date.now(), R=rng(rand32());
+  let best=null,bestScore=Infinity,att=0;
+  while(att<maxA&&(att<minA||Date.now()-t0<ms)){
+    att++;const H=cloneH(H0);let score=0,first=null;
+    for(let k=0;k<Math.max(1,remaining);k++){const s=step(n,c,sitN,ST,H,R);if(!first)first=s;
+      score+=1e6*s.pr+1e3*s.b2b+s.orp; if(score>bestScore)break}
+    if(score<bestScore||(score===bestScore&&R()<0.5)){bestScore=score;best=first}
+  }
+  return {matches:best.ms.map(([A,B])=>[A.map(i=>players[i]),B.map(i=>players[i])]),sit:best.sit.map(i=>players[i]),_att:att};
+}
 const ROUNDS=()=>S.cfg.rounds;
+const groupRounds=(g,upto)=>{const out=[];for(let r=0;r<upto&&S.rev[r];r++)out.push(S.rev[r][g]);return out};
+function revealedCount(){let r=0;while(S.rev[r])r++;return r}
 
 function roundMatches(r){
-  const D=draw(),out=[],kc=D.k[r].matches.length;
-  D.k[r].matches.forEach((m,i)=>out.push({id:`k${r}_${i}`,court:i+1,a:m[0],b:m[1],grp:"k"}));
-  D.a[r].matches.forEach((m,i)=>out.push({id:`a${r}_${i}`,court:kc+i+1,a:m[0],b:m[1],grp:"a"}));
+  const out=[],R=S.rev[r]; if(!R)return out; const kc=R.k.matches.length;
+  R.k.matches.forEach((m,i)=>out.push({id:`k${r}_${i}`,court:i+1,a:m[0],b:m[1],grp:"k"}));
+  R.a.matches.forEach((m,i)=>out.push({id:`a${r}_${i}`,court:kc+i+1,a:m[0],b:m[1],grp:"a"}));
   out.forEach(m=>m.sig=m.a.join(",")+"|"+m.b.join(","));
   return out;
 }
@@ -209,20 +231,50 @@ function vSettings(first){
   </div><button class="btn acc" id="cfgsave">${first?"Zaczynamy":"Zapisz ustawienia"}</button>`;
   return h;
 }
+let ANIM=null;
+function roundHasScores(r){return Object.keys(S.scores).some(k=>k.startsWith("k"+r+"_")||k.startsWith("a"+r+"_"))}
+function reveal(r){
+  if(ANIM||S.rev[r]||(r>0&&!S.rev[r-1]))return;
+  ANIM={r,res:null,t0:Date.now()};render();
+  const iv=setInterval(()=>document.querySelectorAll(".nm").forEach(el=>{const L=S.roster[el.dataset.g];el.textContent=N(L[Math.floor(Math.random()*L.length)])}),80);
+  setTimeout(()=>{const left=Math.max(1,ROUNDS()-r);
+    ANIM.res={k:drawNext(S.roster.k,groupRounds("k",r),left,{ms:200}),a:drawNext(S.roster.a,groupRounds("a",r),left,{ms:200})};
+    window.__lastAtt=[ANIM.res.k._att,ANIM.res.a._att];delete ANIM.res.k._att;delete ANIM.res.a._att},120);
+  (function fin(){if(!ANIM.res||Date.now()-ANIM.t0<1800){setTimeout(fin,50);return}
+    clearInterval(iv);S.rev[r]=ANIM.res;ANIM=null;S._just=r;save();render();delete S._just;if(navigator.vibrate)navigator.vibrate(80)})();
+}
 function vRound(){
   if(!S.cfgSeen) return vSettings(true);
   if(S.round>=ROUNDS())S.round=ROUNDS()-1;
-  const r=S.round, ms=roundMatches(r), D=draw();
+  const r=S.round, R=S.rev[r], ms=roundMatches(r);
   let h=`<div class="rnav"><button id="prev" ${r===0?"disabled":""}>‹</button><div class="lbl"><b>Runda ${r+1} / ${ROUNDS()}</b><span>${times(r)}</span></div><button id="next" ${r===ROUNDS()-1?"disabled":""}>›</button></div>`;
-  const kc=D.k[r].matches.length, ac=D.a[r].matches.length;
   const cr=(a,b)=>a===b?`kort ${a}`:`korty ${a}–${b}`;
+  if(!R){
+    const anim=ANIM&&ANIM.r===r, nc=g=>Math.min(2,Math.floor(S.roster[g].length/4)), kc=nc("k"), ac=nc("a");
+    const can=r===0||!!S.rev[r-1];
+    if(!anim){
+      if(can) h+=`<button class="btn acc big" id="reveal">🎲 Losuj rundę ${r+1}</button><p class="note" style="text-align:center">Pary i pauzy losujemy na żywo – niespodzianka!</p>`;
+      else h+=`<p class="note">Najpierw wylosuj rundę ${revealedCount()+1}.</p><button class="btn" id="gofirst">Przejdź do rundy ${revealedCount()+1}</button>`;
+    } else h+=`<p class="note" style="text-align:center;font-weight:700;color:var(--acc)">Losowanie…</p>`;
+    const q=g=>anim?`<span class="nm" data-g="${g}">?</span>`:"?";
+    const card=(g,c)=>`<div class="court q${anim?" spin":""}"><h3><span>Kort ${c}</span></h3><div class="pair"><div class="names">${q(g)} + ${q(g)}</div></div><div class="pair"><div class="names">${q(g)} + ${q(g)}</div></div></div>`;
+    h+=`<div class="sec">Dzieci${kc?" · "+cr(1,kc):""}</div>`;for(let i=0;i<kc;i++)h+=card("k",i+1);
+    if(S.roster.k.length>4*kc)h+=`<div class="sit">Pauza: <b>${Array(S.roster.k.length-4*kc).fill(0).map(()=>q("k")).join(", ")}</b></div>`;
+    h+=`<div class="sec">Dorośli${ac?" · "+cr(kc+1,kc+ac):""}</div>`;for(let i=0;i<ac;i++)h+=card("a",kc+i+1);
+    if(S.roster.a.length>4*ac)h+=`<div class="sit">Pauza: <b>${Array(S.roster.a.length-4*ac).fill(0).map(()=>q("a")).join(", ")}</b></div>`;
+    return h;
+  }
+  const kc=R.k.matches.length, ac=R.a.matches.length, pop=S._just===r?" pop":"";
+  h=h.replace('<div class="rnav">','<div class="rnav">');
+  h+=`<div class="${pop}">`;
   h+=`<div class="sec">Dzieci${kc?" · "+cr(1,kc):""}</div>`;
   ms.filter(m=>m.grp==="k").forEach(m=>h+=courtCard(m,"Kort "+m.court));
-  if(D.k[r].sit.length)h+=`<div class="sit">Pauza: <b>${D.k[r].sit.map(N).map(esc).join(", ")}</b></div>`;
+  if(R.k.sit.length)h+=`<div class="sit">Pauza: <b>${R.k.sit.map(N).map(esc).join(", ")}</b></div>`;
   h+=`<div class="sec">Dorośli${ac?" · "+cr(kc+1,kc+ac):""}</div>`;
   ms.filter(m=>m.grp==="a").forEach(m=>h+=courtCard(m,"Kort "+m.court));
-  if(D.a[r].sit.length)h+=`<div class="sit">Pauza: <b>${D.a[r].sit.map(N).map(esc).join(", ")}</b></div>`;
-  h+=`<p class="note">Każdy gracz dostaje tyle punktów, ile zdobyła jego para. Remis = bez zwycięstwa.</p>`;
+  if(R.a.sit.length)h+=`<div class="sit">Pauza: <b>${R.a.sit.map(N).map(esc).join(", ")}</b></div>`;
+  h+=`</div><p class="note">Każdy gracz dostaje tyle punktów, ile zdobyła jego para. Remis = bez zwycięstwa.</p>`;
+  if(!S.rev[r+1]&&!roundHasScores(r)) h+=`<button class="btn ghost" id="reroll">↻ Losuj ponownie</button>`;
   if(r<ROUNDS()-1) h+=`<button class="btn" id="next2">Następna runda ›</button>`;
   else {h+=`<button class="btn acc" data-go="final">Przejdź do FINAŁU</button>`;
     if(ROUNDS()<MAXR)h+=`<button class="btn ghost" id="addround">+ Dodaj rundę (${hm(toMin(S.cfg.start)+ROUNDS()*S.cfg.len)}–${hm(toMin(S.cfg.start)+(ROUNDS()+1)*S.cfg.len)})</button>`}
@@ -269,7 +321,7 @@ function vMore(){
   let h=vSettings(false);
   h+=`<div class="sec">Plan dnia</div><div class="sched">
   <div><b>13:00–${hm(st)}</b>Rozgrzewka</div><div><b>${hm(st)}–${hm(end)}</b>${c.rounds} ${c.rounds===1?"runda":(c.rounds%10>=2&&c.rounds%10<=4&&(c.rounds<10||c.rounds>20)?"rundy":"rund")} po ${c.len} min</div><div><b>14:55–15:20</b>Finał (pary mieszane)</div><div><b>15:20–15:25</b>Nagrody</div><div><b>15:25–16:00</b>Tort 🎂</div></div>`;
-  h+=`<div class="sec">Edytuj składy</div><p class="note">Zmiana imienia nie zmienia losowania. Dodanie lub usunięcie gracza losuje pary od nowa (na 1 kort potrzeba 4 graczy, reszta pauzuje).</p><div class="edit">`;
+  h+=`<div class="sec">Edytuj składy</div><p class="note">Zmiana imienia nie zmienia wylosowanych par. Dodanie lub usunięcie gracza działa od następnej losowanej rundy (na 1 kort potrzeba 4 graczy, reszta pauzuje).</p><div class="edit">`;
   [["Dzieci","k"],["Dorośli","a"]].forEach(([t,g])=>{h+=`<div class="sec">${t} (${S.roster[g].length})</div>`;
     S.roster[g].forEach(p=>h+=`<label><span>${esc(p)}</span><input data-nm="${esc(p)}" value="${esc(N(p))}"><button class="x" data-rm="${g}|${esc(p)}" aria-label="usuń">×</button></label>`);
     h+=`<label><input data-addname="${g}" placeholder="+ Dodaj gracza"><button class="x add" data-add="${g}">Dodaj</button></label>`});
@@ -292,24 +344,23 @@ function setScore(id,side,val){
 }
 function setPend(f,v,min,max){S._pend[f]=Math.max(min,Math.min(max,v||min))}
 function applyCfg(){
-  const P=S._pend, old=S.cfg;
-  if(P.rounds<old.rounds&&Object.keys(S.scores).some(k=>/^[ka](\d+)_/.test(k)&&+k.match(/^[ka](\d+)_/)[1]>=P.rounds)){
-    if(!confirm(`Rundy ${P.rounds+1}–${old.rounds} mają już wyniki. Usunąć te rundy?`))return;
-    if(!confirm("Zachować wyniki pozostałych rund?\nOK = zachowaj, Anuluj = zacznij od nowa")) {S.scores={};S.final=null}
-    else Object.keys(S.scores).forEach(k=>{const m=k.match(/^[ka](\d+)_/);if(m&&+m[1]>=P.rounds)delete S.scores[k]});
+  const P=S._pend, old=S.cfg, revN=revealedCount();
+  if(P.rounds<revN){
+    if(!confirm(`Rundy ${P.rounds+1}–${revN} są już wylosowane${Object.keys(S.scores).some(k=>{const m=k.match(/^[ka](\d+)_/);return m&&+m[1]>=P.rounds})?" i mają wyniki":""}. Usunąć je?`))return;
+    for(let i=P.rounds;i<revN;i++)delete S.rev[i];
+    Object.keys(S.scores).forEach(k=>{const m=k.match(/^[ka](\d+)_/);if(m&&+m[1]>=P.rounds)delete S.scores[k]});
   }
   S.cfg=Object.assign({},P); S.cfgSeen=true; delete S._pend;
   if(!S.timer.running){S.timer.left=RS();S.timer.endAt=0}
   save();render();tick();scrollTo(0,0);
 }
 function rosterChange(fn){
-  if(hasScores()){if(!confirm("Zmiana składu losuje pary od nowa. Kontynuować?"))return false;
-    if(!confirm("Zachować wyniki rund z niezmienionymi parami?\nOK = zachowaj, Anuluj = zacznij od nowa")){S.scores={};S.final=null}}
+  if(revealedCount()&&!confirm("Zmiana składu dotyczy tylko rund jeszcze nie wylosowanych. Wylosowane rundy i wyniki zostają. Kontynuować?"))return false;
   fn();save();render();return true;
 }
 document.addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b)return;
-  if(b.dataset.tab){S.tab=b.dataset.tab;delete S._pend;save();render();scrollTo(0,0);return}
+  if(b.dataset.tab){if(ANIM)return;S.tab=b.dataset.tab;delete S._pend;save();render();scrollTo(0,0);return}
   if(b.dataset.go){S.tab=b.dataset.go;save();render();scrollTo(0,0);return}
   if(b.dataset.board){S.board=b.dataset.board;save();render();return}
   if(b.dataset.st){const p=b.dataset.st.split("|"),d=+p.pop();
@@ -320,12 +371,17 @@ document.addEventListener("click",e=>{
     if(!v)return; if(S.roster.k.includes(v)||S.roster.a.includes(v)){alert("Takie imię już jest.");return}
     rosterChange(()=>{S.roster[g]=S.roster[g].concat([v])});return}
   if(b.id==="cfgsave"){applyCfg();return}
+  if(b.id==="reveal"){reveal(S.round);return}
+  if(b.id==="gofirst"){S.round=revealedCount();save();render();scrollTo(0,0);return}
+  if(b.id==="reroll"){const r=S.round;if(ANIM||S.rev[r+1])return;if(roundHasScores(r)){alert("Ta runda ma już wyniki – nie można losować ponownie.");render();return}
+    if(confirm(`Wylosować rundę ${r+1} od nowa?`)){delete S.rev[r];save();reveal(r)}return}
   if(b.id==="addround"){S.cfg.rounds=Math.min(MAXR,S.cfg.rounds+1);S.round=S.cfg.rounds-1;save();render();scrollTo(0,0);return}
+  if(ANIM)return;
   if(b.id==="prev"&&S.round>0){S.round--;save();render();scrollTo(0,0)}
   if((b.id==="next"||b.id==="next2")&&S.round<ROUNDS()-1){S.round++;save();render();scrollTo(0,0)}
   if(b.id==="mkfinal"){S.final={pairs:finalSeeds()};save();render()}
   if(b.id==="rmfinal"&&confirm("Ustalić pary finałowe od nowa? Wyniki finału zostaną usunięte.")){S.final=null;["f_s1","f_s2","f_f","f_t"].forEach(k=>delete S.scores[k]);save();render()}
-  if(b.id==="reset"&&confirm("Na pewno wyczyścić WSZYSTKIE wyniki?")&&confirm("To nieodwracalne. Kontynuować?")){S.scores={};S.final=null;S.round=0;save();render()}
+  if(b.id==="reset"&&confirm("Na pewno wyczyścić WSZYSTKIE wyniki i losowania?")&&confirm("To nieodwracalne. Kontynuować?")){S.scores={};S.rev={};S.final=null;S.round=0;save();render()}
 });
 document.addEventListener("change",e=>{
   const t=e.target;
